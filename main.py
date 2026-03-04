@@ -21,6 +21,7 @@ from src.cli.scrape import handle_scrape
 from src.cli.store import handle_store
 from src.cli.summarize import handle_summarize
 from src.cli.search import handle_search
+from src.cli.visualize import handle_visualize
 
 
 BANNER = """
@@ -37,9 +38,11 @@ Commands:
   scrape appstore   <app-id or name>
   scrape remoteok   <search term>
 
-  store     <source> <identifier>
+  store     <source> <identifier> [--min-quality N] [--annotate]
   summarize <source> <identifier>
   search    "<keyword>"
+  visualize <source> <identifier> [--chart ratings|keywords|timeline|quality]
+                                  [--output terminal|image] [--top N]
 
   help      show this message
   exit      quit the shell  (or press Ctrl+C twice)
@@ -73,6 +76,10 @@ def build_parser() -> argparse.ArgumentParser:
     store_parser = subparsers.add_parser("store", add_help=False)
     store_parser.add_argument("source", choices=["reddit", "trustpilot", "appstore", "remoteok"])
     store_parser.add_argument("identifier")
+    store_parser.add_argument("--min-quality", type=int, default=0, dest="min_quality",
+                              metavar="N", help="Drop items with quality score below N (0–100)")
+    store_parser.add_argument("--annotate", action="store_true",
+                              help="Add quality_score and flagged fields to every item")
 
     # ── summarize ─────────────────────────────────────────────────────────────
     summarize_parser = subparsers.add_parser("summarize", add_help=False)
@@ -82,6 +89,16 @@ def build_parser() -> argparse.ArgumentParser:
     # ── search ────────────────────────────────────────────────────────────────
     search_parser = subparsers.add_parser("search", add_help=False)
     search_parser.add_argument("keyword")
+
+    # ── visualize ─────────────────────────────────────────────────────────────
+    viz_parser = subparsers.add_parser("visualize", add_help=False)
+    viz_parser.add_argument("source", choices=["reddit", "trustpilot", "appstore", "remoteok"])
+    viz_parser.add_argument("identifier")
+    viz_parser.add_argument("--chart", default="ratings",
+                            choices=["ratings", "keywords", "timeline", "quality"])
+    viz_parser.add_argument("--output", default="terminal",
+                            choices=["terminal", "image"])
+    viz_parser.add_argument("--top", type=int, default=15, metavar="N")
 
     # ── help / exit ───────────────────────────────────────────────────────────
     subparsers.add_parser("help",  add_help=False)
@@ -116,6 +133,11 @@ def dispatch(args: argparse.Namespace) -> None:
             print('[error] Usage: search "<keyword>"')
             return
         handle_search(args)
+    elif args.command == "visualize":
+        if not getattr(args, "identifier", None):
+            print("[error] Usage: visualize <source> <identifier> [--chart <type>]")
+            return
+        handle_visualize(args)
 
 
 def run_repl() -> None:
@@ -221,6 +243,10 @@ def main() -> None:
         store_p = subparsers.add_parser("store")
         store_p.add_argument("source", choices=["reddit", "trustpilot", "appstore", "remoteok"])
         store_p.add_argument("identifier")
+        store_p.add_argument("--min-quality", type=int, default=0, dest="min_quality",
+                             metavar="N", help="Drop items with quality score below N (0–100)")
+        store_p.add_argument("--annotate", action="store_true",
+                             help="Add quality_score and flagged fields to every item")
 
         sum_p = subparsers.add_parser("summarize")
         sum_p.add_argument("source", choices=["reddit", "trustpilot", "appstore", "remoteok"])
@@ -228,6 +254,15 @@ def main() -> None:
 
         search_p = subparsers.add_parser("search")
         search_p.add_argument("keyword")
+
+        viz_p = subparsers.add_parser("visualize")
+        viz_p.add_argument("source", choices=["reddit", "trustpilot", "appstore", "remoteok"])
+        viz_p.add_argument("identifier")
+        viz_p.add_argument("--chart", default="ratings",
+                           choices=["ratings", "keywords", "timeline", "quality"])
+        viz_p.add_argument("--output", default="terminal",
+                           choices=["terminal", "image"])
+        viz_p.add_argument("--top", type=int, default=15, metavar="N")
 
         args = one_shot.parse_args()
         dispatch(args)

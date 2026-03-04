@@ -28,3 +28,4 @@ Thumbs.db
 # Keep directory structure but not generated files
 data/**/*.json
 summaries/*.md
+charts/*.png
